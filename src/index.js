@@ -12,6 +12,13 @@ const startServer = async () => {
 
   app.use("/api", routes);
 
+  app.use((err, req, res, next) => {
+    logger.error(err.stack);
+    res.status(err.statusCode || 500).send({
+      message: err.message,
+    });
+  });
+
   app.listen(port, () => {
     logger.info(`Server listening on port ${port}`);
   });
