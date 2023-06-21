@@ -1,27 +1,32 @@
 const jwt = require("jsonwebtoken");
 const models = require("../models");
 const argon2 = require("argon2");
-const { errorHandler } = require("../util");
+const { errorHandler, withTransaction } = require("../util");
 
-const signup = errorHandler(async (req, res) => {
-  const userDoc = await models.User.create({
-    username: req.body.username,
-    password: await argon2.hash(req.body.password),
-  });
+const signup = errorHandler(
+  withTransaction(async (req, res, session) => {
+    const userDoc = await models.User.create({
+      username: req.body.username,
+      password: await argon2.hash(req.body.password),
+    });
 
-  const refreshTokenDoc = await models.RefreshToken.create({
-    owner: userDoc._id,
-  });
+    const refreshTokenDoc = await models.RefreshToken.create({
+      owner: userDoc._id,
+    });
 
-  const refreshToken = createRefreshToken(userDoc._id, refreshTokenDoc._id);
-  const accessToken = createAccessToken(userDoc._id);
+    userDoc.save({ session });
+    refreshTokenDoc.save({ session });
 
-  return {
-    id: userDoc._id,
-    accessToken,
-    refreshToken,
-  };
-});
+    const refreshToken = createRefreshToken(userDoc._id, refreshTokenDoc._id);
+    const accessToken = createAccessToken(userDoc._id);
+
+    return {
+      id: userDoc._id,
+      accessToken,
+      refreshToken,
+    };
+  })
+);
 
 const createAccessToken = (userId) => {
   return jwt.sign(
