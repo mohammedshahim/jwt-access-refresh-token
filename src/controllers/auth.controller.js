@@ -2,31 +2,61 @@ const jwt = require("jsonwebtoken");
 const models = require("../models");
 const argon2 = require("argon2");
 const { errorHandler, withTransaction } = require("../util");
+const { HttpError } = require("../error");
 
-const signup = errorHandler(
-  withTransaction(async (req, res, session) => {
-    const userDoc = await models.User.create({
-      username: req.body.username,
-      password: await argon2.hash(req.body.password),
-    });
+const signup = errorHandler(async (req, res) => {
+  const userDoc = await models.User.create({
+    username: req.body.username,
+    password: await argon2.hash(req.body.password),
+  });
 
-    const refreshTokenDoc = await models.RefreshToken.create({
-      owner: userDoc._id,
-    });
+  const refreshTokenDoc = await models.RefreshToken.create({
+    owner: userDoc._id,
+  });
 
-    userDoc.save({ session });
-    refreshTokenDoc.save({ session });
+  userDoc.save({});
+  refreshTokenDoc.save({});
 
-    const refreshToken = createRefreshToken(userDoc._id, refreshTokenDoc._id);
-    const accessToken = createAccessToken(userDoc._id);
+  const refreshToken = createRefreshToken(userDoc._id, refreshTokenDoc._id);
+  const accessToken = createAccessToken(userDoc._id);
 
-    return {
-      id: userDoc._id,
-      accessToken,
-      refreshToken,
-    };
+  return {
+    id: userDoc._id,
+    accessToken,
+    refreshToken,
+  };
+});
+
+const login = errorHandler(async (req, res) => {
+  const userDoc = await models.User.findOne({
+    username: req.body.username,
   })
-);
+    .select("+password")
+    .exec();
+
+  console.log(userDoc);
+
+  if (!userDoc) {
+    throw new HttpError(401, "Invalid username or password");
+  }
+
+  await verifyPassword(userDoc.password, req.body.password);
+
+  const refreshTokenDoc = await models.RefreshToken.findOne({
+    owner: userDoc._id,
+  });
+
+  await refreshTokenDoc.save({});
+
+  const refreshToken = createRefreshToken(userDoc._id, refreshTokenDoc._id);
+  const accessToken = createAccessToken(userDoc._id);
+
+  return {
+    id: userDoc._id,
+    accessToken,
+    refreshToken,
+  };
+});
 
 const createAccessToken = (userId) => {
   return jwt.sign(
@@ -53,6 +83,14 @@ const createRefreshToken = (userId, refreshTokenId) => {
   );
 };
 
+const verifyPassword = async (hashedPassword, rawPassword) => {
+  if (await argon2.verify(hashedPassword, rawPassword)) {
+  } else {
+    throw new HttpError(401, "Invalid username or password");
+  }
+};
+
 module.exports = {
   signup,
+  login,
 };

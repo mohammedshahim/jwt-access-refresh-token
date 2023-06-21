@@ -5,7 +5,7 @@ const router = express.Router();
 const tap = (req, res) => {};
 
 router.post("/signup", controllers.auth.signup);
-router.post("/login", tap);
+router.post("/login", controllers.auth.login);
 router.post("/logout", tap);
 router.post("/accessToken", tap);
 router.post("/refreshToken", tap);
