@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon server.js",
+    "dev": "nodemon server.js | pino-pretty -c -t",
     "start": "node server.js"
   },
   "repository": {
@@ -20,7 +20,9 @@
   "homepage": "https://github.com/mohammedshahim/jwt-access-refresh-token#readme",
   "dependencies": {
     "dotenv": "^16.3.1",
-    "pino": "^8.14.1"
+    "express": "^4.18.2",
+    "pino": "^8.14.1",
+    "pino-pretty": "^10.0.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
