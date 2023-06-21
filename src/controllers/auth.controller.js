@@ -34,8 +34,6 @@ const login = errorHandler(async (req, res) => {
     .select("+password")
     .exec();
 
-  console.log(userDoc);
-
   if (!userDoc) {
     throw new HttpError(401, "Invalid username or password");
   }
@@ -46,13 +44,37 @@ const login = errorHandler(async (req, res) => {
     owner: userDoc._id,
   });
 
-  await refreshTokenDoc.save({});
-
   const refreshToken = createRefreshToken(userDoc._id, refreshTokenDoc._id);
   const accessToken = createAccessToken(userDoc._id);
 
   return {
     id: userDoc._id,
+    accessToken,
+    refreshToken,
+  };
+});
+
+const newRefreshToken = errorHandler(async (req, res) => {
+  const currentRefreshToken = validateRefreshToken(req.body.refreshToken);
+
+  const refreshTokenDoc = await models.RefreshToken({
+    owner: currentRefreshToken.userId,
+  });
+
+  await models.RefreshToken.deleteOne({
+    _id: currentRefreshToken.tokenId,
+  });
+
+  await refreshTokenDoc.save({});
+
+  const refreshToken = createRefreshToken(
+    currentRefreshToken.userId,
+    refreshTokenDoc._id
+  );
+  const accessToken = createAccessToken(currentRefreshToken.userId);
+
+  return {
+    id: currentRefreshToken.userId,
     accessToken,
     refreshToken,
   };
@@ -90,7 +112,28 @@ const verifyPassword = async (hashedPassword, rawPassword) => {
   }
 };
 
+const validateRefreshToken = async (refreshToken) => {
+  const decodeToken = () => {
+    try {
+      return jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    } catch (err) {
+      throw new HttpError(401, "Unauthorized");
+    }
+  };
+
+  const decodedToken = decodeToken();
+  const tokenExists = await models.RefreshToken.exists({
+    _id: decodedToken.tokenId,
+  });
+  if (tokenExists) {
+    return decodedToken;
+  } else {
+    throw new HttpError(401, "Unauthorized");
+  }
+};
+
 module.exports = {
   signup,
   login,
+  newRefreshToken,
 };
