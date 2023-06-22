@@ -65,7 +65,9 @@ const newRefreshToken = errorHandler(async (req, res) => {
     _id: currentRefreshToken.tokenId,
   });
 
-  await refreshTokenDoc.save({});
+  await models.RefreshToken.create({
+    owner: currentRefreshToken.userId,
+  });
 
   const refreshToken = createRefreshToken(
     currentRefreshToken.userId,
@@ -77,6 +79,17 @@ const newRefreshToken = errorHandler(async (req, res) => {
     id: currentRefreshToken.userId,
     accessToken,
     refreshToken,
+  };
+});
+
+const newAccessToken = errorHandler(async (req, res) => {
+  const currentRefreshToken = await validateRefreshToken(req.body.refreshToken);
+  const accessToken = createAccessToken(currentRefreshToken.userId);
+
+  return {
+    id: currentRefreshToken.userId,
+    accessToken,
+    refreshToken: req.body.refreshToken,
   };
 });
 
@@ -136,4 +149,5 @@ module.exports = {
   signup,
   login,
   newRefreshToken,
+  newAccessToken,
 };
